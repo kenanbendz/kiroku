@@ -9,7 +9,7 @@
 //   - Reorder tasks with shift+up/down
 //   - Progress bar showing completion ratio
 //   - Completed tasks automatically sort to the bottom
-//   - Persistence to ~/.driver/data.json
+//   - Persistence to ~/.kikoru/data.json
 package main
 
 import (
@@ -59,7 +59,7 @@ type Model struct {
 // Persist
 func dataFilePath() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".driver", "data.json")
+	return filepath.Join(home, ".kikoru", "data.json")
 }
 
 func loadData(path string) (AppData, error) {
