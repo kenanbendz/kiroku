@@ -6,14 +6,14 @@
 ## Install
 
 ```bash
-brew install --cask kenanbendz/tap/kiroku
+brew install kenanbendz/tap/kiroku
 ```
 
 Or manually:
 
 ```bash
 brew tap kenanbendz/tap
-brew install --cask kiroku
+brew install kiroku
 ```
 
 Then just run:
