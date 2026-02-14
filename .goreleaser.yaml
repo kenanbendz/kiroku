@@ -1,3 +1,5 @@
+version: 2
+
 project_name: kiroku
 
 builds:
@@ -10,13 +12,16 @@ builds:
       - amd64
       - arm64
 
-brews:
-  - repository:
+homebrew_casks:
+  - name: kiroku
+    homepage: "https://github.com/kenanbendz/kiroku"
+    description: "a minimal TUI task manager with spaces, two-column layout, and local persistence."
+    binaries:
+      - kiroku
+    repository:
       owner: kenanbendz
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/kenanbendz/kiroku"
-    description: "a minimal TUI task manager with spaces, two-column layout, and local persistence."
 
 release:
   github:
