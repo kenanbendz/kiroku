@@ -602,7 +602,7 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case "ctrl+shift+d":
+	case "ctrl+x":
 		if sp != nil {
 			m.mode = "delete_space_confirm"
 			taskInfo := ""
@@ -885,16 +885,16 @@ func (m Model) renderHelpDialog() string {
 		keyStyle.Render("a") + descStyle.Render("Add task"),
 		keyStyle.Render("Space / Enter") + descStyle.Render("Toggle done/undone"),
 		keyStyle.Render("Backspace") + descStyle.Render("Delete task"),
-		keyStyle.Render("Ctrl+D") + descStyle.Render("Delete all tasks"),
-		keyStyle.Render("Shift+Up/Down") + descStyle.Render("Reorder task"),
+		keyStyle.Render("Ctrl + d") + descStyle.Render("Delete all tasks"),
+		keyStyle.Render("Shift + Up/Down") + descStyle.Render("Reorder task"),
 		keyStyle.Render("Up/Down  j/k") + descStyle.Render("Navigate"),
 		keyStyle.Render("Tab") + descStyle.Render("Switch column"),
 		"",
 		sectionStyle.Render("Spaces"),
-		keyStyle.Render("Shift+Left/Right") + descStyle.Render("Switch space"),
-		keyStyle.Render("Shift+Right") + descStyle.Render("New space (past last)"),
-		keyStyle.Render("Ctrl+R") + descStyle.Render("Rename space"),
-		keyStyle.Render("Ctrl+Shift+D") + descStyle.Render("Delete space"),
+		keyStyle.Render("Shift + Left/Right") + descStyle.Render("Switch space"),
+		keyStyle.Render("Shift + Right") + descStyle.Render("New space (past last)"),
+		keyStyle.Render("Ctrl + r") + descStyle.Render("Rename space"),
+		keyStyle.Render("Ctrl + x") + descStyle.Render("Delete space"),
 		"",
 		sectionStyle.Render("General"),
 		keyStyle.Render("?") + descStyle.Render("Toggle this help"),
