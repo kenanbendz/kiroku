@@ -47,11 +47,12 @@ type Model struct {
 	data     AppData
 	dataPath string
 
-	focusCol    int // 0 = todo (left), 1 = done (right)
-	selectedIdx int // index within the focused column's filtered list
-	width       int
-	height      int
-	mode        string // "normal", "add", "add_space", "rename_space", "delete_confirm", "delete_all_confirm", "delete_space_confirm", "help"
+	focusCol     int    // 0 = todo (left), 1 = done (right)
+	selectedIdx  int    // index within the focused column's filtered list
+	scrollOffset [2]int // vertical scroll offset per column
+	width        int
+	height       int
+	mode         string // "normal", "add", "add_space", "rename_space", "delete_confirm", "delete_all_confirm", "delete_space_confirm", "help"
 
 	form *huh.Form
 }
@@ -164,6 +165,55 @@ func (m *Model) clampSelection() {
 		m.selectedIdx = 0
 	} else if m.selectedIdx >= n {
 		m.selectedIdx = n - 1
+	}
+	m.ensureVisible()
+}
+
+// ensureVisible adjusts the scroll offset so the selected item is in view.
+func (m *Model) ensureVisible() {
+	col := m.focusCol
+	sp := m.activeSpace()
+	if sp == nil {
+		return
+	}
+	var n int
+	if col == 0 {
+		n = len(todoIndices(sp))
+	} else {
+		n = len(doneIndices(sp))
+	}
+	if n == 0 {
+		m.scrollOffset[col] = 0
+		return
+	}
+
+	visibleHeight := m.height - 14
+	if visibleHeight < 3 {
+		visibleHeight = 3
+	}
+
+	// No scrolling needed if everything fits
+	if n <= visibleHeight {
+		m.scrollOffset[col] = 0
+		return
+	}
+
+	// Scroll up if selected is above the viewport
+	if m.selectedIdx < m.scrollOffset[col] {
+		m.scrollOffset[col] = m.selectedIdx
+	}
+
+	// Scroll down if selected is below the viewport
+	// Account for indicator lines: up indicator if offset>0, down indicator if more below
+	itemSlots := visibleHeight
+	if m.scrollOffset[col] > 0 {
+		itemSlots-- // up indicator takes a line
+	}
+	if m.scrollOffset[col]+itemSlots < n {
+		itemSlots-- // down indicator takes a line
+	}
+	if m.selectedIdx >= m.scrollOffset[col]+itemSlots {
+		m.scrollOffset[col] = m.selectedIdx - itemSlots + 1
 	}
 }
 
@@ -402,6 +452,7 @@ func (m Model) handleFormComplete() (tea.Model, tea.Cmd) {
 				sp.NextID++
 				m.focusCol = 0
 				m.selectedIdx = len(todoIndices(sp)) - 1
+				m.ensureVisible()
 				m.save()
 			}
 		}
@@ -527,6 +578,7 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			if n > 0 {
 				m.selectedIdx = (m.selectedIdx - 1 + n) % n
+				m.ensureVisible()
 			}
 		}
 		return m, nil
@@ -541,6 +593,7 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			if n > 0 {
 				m.selectedIdx = (m.selectedIdx + 1) % n
+				m.ensureVisible()
 			}
 		}
 		return m, nil
@@ -644,6 +697,7 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				a, b := todos[m.selectedIdx], todos[m.selectedIdx-1]
 				sp.Tasks[a], sp.Tasks[b] = sp.Tasks[b], sp.Tasks[a]
 				m.selectedIdx--
+				m.ensureVisible()
 				m.save()
 			}
 		}
@@ -656,6 +710,7 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				a, b := todos[m.selectedIdx], todos[m.selectedIdx+1]
 				sp.Tasks[a], sp.Tasks[b] = sp.Tasks[b], sp.Tasks[a]
 				m.selectedIdx++
+				m.ensureVisible()
 				m.save()
 			}
 		}
@@ -793,8 +848,8 @@ func (m Model) renderColumns(totalWidth, height int) string {
 	sp := m.activeSpace()
 	colWidth := (totalWidth - 1) / 2 // -1 for gap between columns
 
-	leftContent := m.renderColumnItems(sp, 0)
-	rightContent := m.renderColumnItems(sp, 1)
+	leftContent := m.renderColumnItems(sp, 0, height)
+	rightContent := m.renderColumnItems(sp, 1, height)
 
 	focusedBorder := styleBorder.BorderForeground(colorPeach)
 	dimBorder := styleBorder.BorderForeground(colorDim)
@@ -822,7 +877,7 @@ func (m Model) renderColumns(totalWidth, height int) string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftCol, " ", rightCol)
 }
 
-func (m Model) renderColumnItems(sp *Space, col int) string {
+func (m Model) renderColumnItems(sp *Space, col, visibleHeight int) string {
 	if sp == nil {
 		return styleMuted.Render("No spaces yet.\nPress Shift+Right\nto create one.")
 	}
@@ -842,7 +897,7 @@ func (m Model) renderColumnItems(sp *Space, col int) string {
 	}
 
 	isFocused := m.focusCol == col
-	var items []string
+	var allItems []string
 	for listIdx, realIdx := range indices {
 		task := sp.Tasks[realIdx]
 		checkbox := "[ ]"
@@ -865,10 +920,44 @@ func (m Model) renderColumnItems(sp *Space, col int) string {
 				item = styleUnselected.Render("  " + label)
 			}
 		}
-		items = append(items, item)
+		allItems = append(allItems, item)
 	}
 
-	return strings.Join(items, "\n")
+	n := len(allItems)
+	if n <= visibleHeight {
+		return strings.Join(allItems, "\n")
+	}
+
+	// Scroll: show only visibleHeight items based on scrollOffset
+	offset := m.scrollOffset[col]
+	hasUp := offset > 0
+	hasDown := offset+visibleHeight < n
+
+	// Reserve lines for scroll indicators
+	itemSlots := visibleHeight
+	if hasUp {
+		itemSlots--
+	}
+	if hasDown {
+		itemSlots--
+	}
+
+	end := offset + itemSlots
+	if end > n {
+		end = n
+	}
+	visible := allItems[offset:end]
+
+	var lines []string
+	if hasUp {
+		lines = append(lines, styleMuted.Render(fmt.Sprintf("  ↑ %d more", offset)))
+	}
+	lines = append(lines, visible...)
+	if hasDown {
+		lines = append(lines, styleMuted.Render(fmt.Sprintf("  ↓ %d more", n-end)))
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 func (m Model) renderFooter() string {
